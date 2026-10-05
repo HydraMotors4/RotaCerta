@@ -150,13 +150,11 @@ Use **Supabase Auth com email e senha** (sem confirmação por email).
 
 ---
 
-## IMPORTANTE — LIMITAÇÃO DE ACESSO (RLS)
+## IMPORTANTE — FUNÇÕES DO BANCO JÁ CRIADAS
 
-Como o banco usa RLS com `auth.uid() = user_id`, **o painel da transportadora só consegue ler diretamente os registros que pertencem ao usuário logado** (a própria transportadora). Para visualizar dados dos motoristas vinculados (viagens, veículos, despesas, abastecimentos), será necessário criar **funções no banco de dados (SECURITY DEFINER)** ou **ajustar as políticas de RLS** para permitir que a transportadora acesse registros de motoristas vinculados a ela.
+As funções SECURITY DEFINER abaixo **já foram criadas no banco de dados**. **NÃO crie novas migrations nem tente recriar estas funções** — apenas chame-as via RPC no código frontend.
 
-### Funções SECURITY DEFINER necessárias
-
-Crie estas funções no banco de dados via migration do Supabase para permitir que a transportadora veja os dados dos seus motoristas:
+Estas funções permitem que a transportadora veja os dados dos motoristas vinculados a ela, contornando o RLS que normalmente limita cada usuário a ver apenas seus próprios registros:
 
 ```sql
 -- Função: buscar motoristas vinculados à transportadora do usuário logado

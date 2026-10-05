@@ -50,8 +50,13 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
       .maybeSingle();
     setSearchingTransportadora(false);
 
-    if (dbError || !data) {
-      setSearchError('Transportadora não encontrada. Verifique o código e tente novamente.');
+    if (dbError) {
+      setSearchError(`Erro ao buscar transportadora: ${dbError.message}`);
+      setFoundTransportadora(null);
+      return;
+    }
+    if (!data) {
+      setSearchError('Transportadora não encontrada. Verifique o código com a transportadora e tente novamente.');
       setFoundTransportadora(null);
       return;
     }
@@ -89,7 +94,7 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
         .eq('id', profile.id);
       setSaving(false);
       if (dbError) {
-        setError('Erro ao salvar perfil.');
+        setError(`Erro ao salvar perfil: ${dbError.message}`);
         return;
       }
     } else {
@@ -98,7 +103,7 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
         .insert({ ...payload, user_id: user?.id });
       setSaving(false);
       if (dbError) {
-        setError('Erro ao salvar perfil.');
+        setError(`Erro ao salvar perfil: ${dbError.message}`);
         return;
       }
     }
