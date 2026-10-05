@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Truck, LogOut, User, Mail, Shield, Info, Building2, Save, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Truck, LogOut, User, Mail, Shield, Info, Building2, Save, Loader2, AlertCircle, CheckCircle2, Search, Unlink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile, useTransportadoras } from '@/hooks/useData';
 import type { PageId } from '@/components/Layout';
+import type { Transportadora } from '@/types/database';
 
 export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const { user, signOut } = useAuth();
@@ -12,20 +13,56 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
 
   const [nomeMotorista, setNomeMotorista] = useState('');
   const [apelido, setApelido] = useState('');
-  const [transportadoraId, setTransportadoraId] = useState('');
+  const [codigoVinculacao, setCodigoVinculacao] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [searchingTransportadora, setSearchingTransportadora] = useState(false);
+  const [foundTransportadora, setFoundTransportadora] = useState<Transportadora | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Initialize form fields when profile loads or editing starts
+  const linkedTransportadora = transportadoras.find((t) => t.id === profile?.transportadora_id) || foundTransportadora;
+
   const startEditing = () => {
     setNomeMotorista(profile?.nome_motorista || '');
     setApelido(profile?.apelido || '');
-    setTransportadoraId(profile?.transportadora_id || '');
+    setCodigoVinculacao('');
+    setFoundTransportadora(null);
+    setSearchError(null);
     setError(null);
     setSuccess(false);
     setEditing(true);
+  };
+
+  const handleSearchTransportadora = async () => {
+    setSearchError(null);
+    const code = codigoVinculacao.trim().toUpperCase();
+    if (!code) {
+      setSearchError('Digite o código informado pela transportadora.');
+      return;
+    }
+    setSearchingTransportadora(true);
+    const { data, error: dbError } = await supabase
+      .from('transportadoras')
+      .select('*')
+      .eq('codigo_vinculacao', code)
+      .maybeSingle();
+    setSearchingTransportadora(false);
+
+    if (dbError || !data) {
+      setSearchError('Transportadora não encontrada. Verifique o código e tente novamente.');
+      setFoundTransportadora(null);
+      return;
+    }
+
+    setFoundTransportadora(data as Transportadora);
+  };
+
+  const handleUnlinkTransportadora = () => {
+    setFoundTransportadora(null);
+    setCodigoVinculacao('');
+    setSearchError(null);
   };
 
   const handleSave = async (e: FormEvent) => {
@@ -33,10 +70,15 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
     setError(null);
     setSaving(true);
 
+    const transportadoraId = foundTransportadora?.id || profile?.transportadora_id || null;
+
+    // If user cleared the code and there's no found transportadora, unlink
+    const finalTransportadoraId = (codigoVinculacao === '' && !foundTransportadora) ? null : transportadoraId;
+
     const payload = {
       nome_motorista: nomeMotorista.trim() || null,
       apelido: apelido.trim() || null,
-      transportadora_id: transportadoraId || null,
+      transportadora_id: finalTransportadoraId,
       updated_at: new Date().toISOString(),
     };
 
@@ -67,7 +109,6 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
     setTimeout(() => setSuccess(false), 3000);
   };
 
-  const linkedTransportadora = transportadoras.find((t) => t.id === profile?.transportadora_id);
   const displayName = profile?.nome_motorista || user?.email;
   const displayApelido = profile?.apelido;
 
@@ -133,22 +174,82 @@ export default function Profile({ onNavigate }: { onNavigate: (page: PageId) => 
               />
             </div>
 
+            {/* Transportadora linking via code */}
             <div>
-              <label className="label-text" htmlFor="transportadora">Vincular-se a uma transportadora</label>
-              <select
-                id="transportadora"
-                value={transportadoraId}
-                onChange={(e) => setTransportadoraId(e.target.value)}
-                className="input-field"
-              >
-                <option value="">Nenhuma (motorista autônomo)</option>
-                {transportadoras.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">
-                O vínculo é opcional. Motoristas autônomos podem usar o sistema normalmente.
-              </p>
+              <label className="label-text">Vincular-se a uma transportadora</label>
+
+              {foundTransportadora ? (
+                <div className="flex items-center justify-between gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Building2 className="w-5 h-5 text-green-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-green-800 truncate">{foundTransportadora.name}</p>
+                      <p className="text-xs text-green-600">Vinculado pelo código {foundTransportadora.codigo_vinculacao}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUnlinkTransportadora}
+                    className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors shrink-0"
+                    title="Desvincular"
+                  >
+                    <Unlink className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : profile?.transportadora_id && linkedTransportadora ? (
+                <div className="flex items-center justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Building2 className="w-5 h-5 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-blue-800 truncate">{linkedTransportadora.name}</p>
+                      <p className="text-xs text-blue-600">Vínculo atual</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { handleUnlinkTransportadora(); }}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium shrink-0"
+                  >
+                    Remover vínculo
+                  </button>
+                </div>
+              ) : null}
+
+              {!foundTransportadora && (
+                <>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={codigoVinculacao}
+                        onChange={(e) => { setCodigoVinculacao(e.target.value.toUpperCase()); setSearchError(null); }}
+                        className="input-field pr-10 font-mono uppercase"
+                        placeholder="Ex: A1B2C3D4"
+                        maxLength={20}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSearchTransportadora}
+                      disabled={searchingTransportadora}
+                      className="btn-secondary flex items-center gap-2 shrink-0"
+                    >
+                      {searchingTransportadora ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      <span className="hidden sm:inline">Buscar</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Digite o código que a transportadora forneceu para se vincular. O vínculo é opcional.
+                  </p>
+                </>
+              )}
+
+              {searchError && (
+                <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{searchError}</span>
+                </div>
+              )}
             </div>
 
             {error && (

@@ -14,6 +14,7 @@ export interface Transportadora {
   user_id: string;
   name: string;
   cnpj: string | null;
+  codigo_vinculacao: string;
   created_at: string;
 }
 
