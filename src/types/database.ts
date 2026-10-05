@@ -17,6 +17,16 @@ export interface Transportadora {
   created_at: string;
 }
 
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  nome_motorista: string | null;
+  apelido: string | null;
+  transportadora_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Vehicle {
   id: string;
   user_id: string;

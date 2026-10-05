@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Trip, Expense, Vehicle, Refueling } from '@/types/database';
+import type { Trip, Expense, Vehicle, Refueling, UserProfile, Transportadora } from '@/types/database';
 
 export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -80,4 +80,42 @@ export function useVehicles() {
   useEffect(() => { load(); }, [load]);
 
   return { vehicles, loading, reload: load, setVehicles };
+}
+
+export function useUserProfile() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .maybeSingle();
+    if (!error && data) setProfile(data as UserProfile);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { profile, loading, reload: load, setProfile };
+}
+
+export function useTransportadoras() {
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('transportadoras')
+      .select('*')
+      .order('name', { ascending: true });
+    if (!error && data) setTransportadoras(data as Transportadora[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { transportadoras, loading, reload: load };
 }
